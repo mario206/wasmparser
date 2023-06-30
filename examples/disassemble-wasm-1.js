@@ -18,22 +18,49 @@
 // all available entries from the imcomplete data.
 // See also ../disassemble-wasm.js file.
 
-var wasmparser = require('../dist/cjs/WasmParser.js');
-var wasmdis = require('../dist/cjs/WasmDis.js');
-var fs = require('fs');
+var wasmparser = require("../dist/cjs/WasmParser.js");
+var wasmdis = require("../dist/cjs/WasmDis.js");
+var fs = require("fs");
 
 var wasmPath = process.argv[2];
+var outputFile = wasmPath + ".txt";
+
 var data = new Uint8Array(fs.readFileSync(wasmPath));
 
+console.log("output file : " + outputFile);
+
+if (fs.existsSync(outputFile)) {
+  console.log("delete old out file");
+  fs.unlinkSync(outputFile);
+}
+
+let writeBuffer = Buffer.alloc(1024 * 1024 * 500); // 500M create a buffer to hold data
+let offset = 0;
+
+var fd = fs.openSync(outputFile, "w");
+
+function writeLine(line) {
+  const len = writeBuffer.write(line, offset); // write data to buffer
+  offset += len;
+  // if buffer is full, write to file
+  if (offset >= writeBuffer.length) {
+    fs.writeSync(fd, writeBuffer); // write buffer to file
+    offset = 0;
+  }
+}
+
+let num = 0;
 var parser = new wasmparser.BinaryReader();
 var dis = new wasmdis.WasmDisassembler();
 dis.addOffsets = true;
 
+var lastProgress = 0;
+
 // Buffer to hold pending data.
-var buffer = new Uint8Array(1);
+var buffer = new Uint8Array(data.length + 1);
 var pendingSize = 0;
 var offsetInModule = 0;
-for (var i = 0; i < data.length;i++) {
+for (var i = 0; i < data.length; i++) {
   var nextByte = data[i];
   var bufferSize = pendingSize + 1;
   // Ensure we can fit the next byte.
@@ -53,9 +80,16 @@ for (var i = 0; i < data.length;i++) {
   var finished = dis.disassembleChunk(parser, offsetInModule);
 
   var result = dis.getResult();
-  result.lines.forEach(function (line, index) {
-    console.log(`${result.offsets[index]}:${index > 0 ? '.' : ' '} ${line}`);
+  result.lines.forEach(function(line, index) {
+    var str = `${result.offsets[index]}:${index > 0 ? "." : " "} ${line}\n`;
+    writeLine(str);
   });
+
+  var currProgress = Math.floor((i * 100) / data.length);
+  if (currProgress > lastProgress) {
+    console.log(`${currProgress}%`)
+    lastProgress = currProgress
+  }
 
   if (parser.position == 0) {
     // Parser did not consume anything.
@@ -69,4 +103,9 @@ for (var i = 0; i < data.length;i++) {
   offsetInModule += parser.position;
 }
 
-console.log('Max buffer used: ' + buffer.length);
+if (offset > 0) {
+  fs.writeSync(fd, writeBuffer.slice(0, offset));
+}
+fs.closeSync(fd);
+
+console.log("output file : " + outputFile);
