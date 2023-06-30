@@ -81,14 +81,15 @@ for (var i = 0; i < data.length; i++) {
 
   var result = dis.getResult();
   result.lines.forEach(function(line, index) {
-    var str = `${result.offsets[index]}:${index > 0 ? "." : " "} ${line}\n`;
+    var pos = `0x${result.offsets[index].toString(16)}`;
+    var str = `${pos}:${index > 0 ? "." : " "} ${line}\n`;
     writeLine(str);
   });
 
   var currProgress = Math.floor((i * 100) / data.length);
   if (currProgress > lastProgress) {
-    console.log(`${currProgress}%`)
-    lastProgress = currProgress
+    console.log(`${currProgress}%`);
+    lastProgress = currProgress;
   }
 
   if (parser.position == 0) {
