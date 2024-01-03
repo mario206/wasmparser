@@ -1,5 +1,4 @@
 ## usgae
-node ./examples/disassemble-wasm-1.js ./my.wasm
-
+node ./examples/main.js ./build/wechatgame
 ## ouput file
-./my.wasm.txt
+./build/wechatgame/webgl.wasm.wat
